@@ -1,3 +1,4 @@
+// NOTE: All functions are NOT thread-safe. Serialize access to devices.
 use std::ffi::{c_char, CStr};
 use std::fmt;
 

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 // It is not this functions job to free
 char **get_devices() { return cdio_get_devices(cdio_os_driver); }
@@ -21,7 +22,7 @@ void free_devices(char **devices) {
 }
 
 bool verify_audio(char *devicestr) {
-  if (!devicestr)
+  if (!devicestr || access(devicestr, F_OK) == -1)
     return false;
   cdrom_drive *drive = cdda_identify(devicestr, CDDA_MESSAGE_PRINTIT, NULL);
   if (!drive) {
@@ -40,7 +41,7 @@ bool verify_audio(char *devicestr) {
 }
 
 int track_num(char *devicestr) {
-  if (!devicestr)
+  if (!devicestr || access(devicestr, F_OK) == -1)
     return -1;
   cdrom_drive *drive = cdda_identify(devicestr, CDDA_MESSAGE_PRINTIT, NULL);
   if (!drive)
@@ -53,12 +54,15 @@ int track_num(char *devicestr) {
 TrackMeta get_track_metadata(char *devicestr, int track) {
   char *title = NULL, *artist = NULL, *genre = NULL;
   CdIo_t *device = NULL;
+  cdrom_drive *dev = NULL;
 
   if (devicestr) {
     device = cdio_open(devicestr, cdio_os_driver);
+    cdda_open(dev);
+
   }
 
-  if (device && track >= 1 && track <= cdio_get_num_tracks(device)) {
+  if (device && track >= 1 && track <= cdio_get_num_tracks(device) && IS_AUDIO(dev, track)) {
     cdtext_t *cdtext = cdio_get_cdtext(device);
     if (cdtext) {
       // Extract and duplicate CD-Text fields immediately
@@ -106,10 +110,13 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
     free(meta.artist);
     free(meta.genre);
     meta.title = meta.artist = meta.genre = NULL;
+    meta = (TrackMeta){0};
   }
 
   if (device)
     cdio_destroy(device);
+  if (dev)
+    cdda_close(dev);
   return meta;
 }
 
@@ -117,6 +124,7 @@ void free_track_metadata(TrackMeta *meta) {
   free(meta->title);
   free(meta->artist);
   free(meta->genre);
+  *meta = (TrackMeta){0};
 }
 
 // int main() {
