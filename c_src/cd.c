@@ -59,10 +59,10 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
   if (devicestr) {
     device = cdio_open(devicestr, cdio_os_driver);
     cdda_open(dev);
-
   }
 
-  if (device && track >= 1 && track <= cdio_get_num_tracks(device) && IS_AUDIO(dev, track)) {
+  if (device && track >= 1 && track <= cdio_get_num_tracks(device) &&
+      IS_AUDIO(dev, track)) {
     cdtext_t *cdtext = cdio_get_cdtext(device);
     if (cdtext) {
       // Extract and duplicate CD-Text fields immediately
