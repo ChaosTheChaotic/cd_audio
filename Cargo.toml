@@ -7,7 +7,7 @@ license = "LGPL-2.1"
 repository = "https://github.com/ChaosTheChaotic/cd_audio"
 
 [lib]
-crate-type = ["cdylib", "staticlib", "dylib", "rlib"]
+crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
 
