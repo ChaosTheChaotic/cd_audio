@@ -44,7 +44,7 @@ impl fmt::Display for TrackMeta {
 }
 
 pub struct STrackMeta {
-    inner: TrackMeta
+    pub inner: TrackMeta
 }
 
 impl Drop for STrackMeta {
@@ -88,7 +88,7 @@ pub fn sget_devices() -> SDevList {
 }
 
 pub struct SDevList {
-    inner: Vec<String>,
+    pub inner: Vec<String>,
 }
 
 impl Drop for SDevList {
