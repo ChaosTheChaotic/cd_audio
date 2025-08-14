@@ -72,60 +72,62 @@ pub fn convert_double_pointer_to_vec(
     data: *mut *mut c_char,
     len: usize,
 ) -> Result<Vec<String>, Utf8Error> {
+    if data.is_null() {
+        return Ok(Vec::new());
+    }
+    
     unsafe {
         from_raw_parts(data, len)
             .iter()
-            .map(|arg| CStr::from_ptr(*arg).to_str().map(ToString::to_string))
+            .map(|ptr| {
+                if ptr.is_null() {
+                    Ok(String::new())
+                } else {
+                    CStr::from_ptr(*ptr).to_str().map(ToString::to_string)
+                }
+            })
             .collect()
+    }
+}
+
+pub struct SDevList {
+    pub inner: Vec<String>,
+    original_ptr: *mut *mut c_char,
+}
+
+impl Drop for SDevList {
+    fn drop(&mut self) {
+        if !self.original_ptr.is_null() {
+            unsafe {
+                free_devices(self.original_ptr);
+            }
+        }
     }
 }
 
 pub fn sget_devices() -> SDevList {
     let devices = unsafe { get_devices() };
     
+    // Count devices until null pointer
     let mut len = 0;
     unsafe {
-        while !(*devices.add(len)).is_null() {
-            len += 1;
+        if !devices.is_null() {
+            while !(*devices.add(len)).is_null() {
+                len += 1;
+            }
         }
     }
 
-    let sdevices: Vec<String> = convert_double_pointer_to_vec(devices, len)
-        .expect("Failed to convert char** to Vec<String>");
+    let sdevices: Vec<String> = if len > 0 {
+        convert_double_pointer_to_vec(devices, len)
+            .expect("Failed to convert char** to Vec<String>")
+    } else {
+        Vec::new()
+    };
     
-    SDevList { inner: sdevices }
-}
-
-pub struct SDevList {
-    pub inner: Vec<String>,
-}
-
-impl Drop for SDevList {
-    fn drop(&mut self) {
-        // Convert Strings to CStrings
-        let c_strings: Vec<CString> = self
-            .inner
-            .iter()
-            .map(|s| CString::new(s.as_bytes()).expect("String contains internal null bytes"))
-            .collect();
-
-        // Create vector of mutable pointers, casting const to mut
-        let mut c_char_pointers: Vec<*mut c_char> = c_strings
-            .iter()
-            .map(|cs| cs.as_ptr() as *mut c_char) // Cast to mutable pointer
-            .collect();
-
-        // Add null terminator
-        c_char_pointers.push(std::ptr::null_mut());
-
-        unsafe {
-            // SAFETY: The C function is now responsible for freeing the memory
-            free_devices(c_char_pointers.as_mut_ptr());
-        }
-
-        // IMPORTANT: Prevent double-free by leaking the CStrings
-        // since the C function now owns the memory
-        std::mem::forget(c_strings);
+    SDevList {
+        inner: sdevices,
+        original_ptr: devices,
     }
 }
 
