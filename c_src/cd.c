@@ -46,6 +46,12 @@ int track_num(char *devicestr) {
   cdrom_drive *drive = cdda_identify(devicestr, CDDA_MESSAGE_PRINTIT, NULL);
   if (!drive)
     return -1;
+    
+  if (cdda_open(drive)) {
+    cdda_close(drive);
+    return -1;
+  }
+
   int num = cdda_tracks(drive);
   cdda_close(drive);
   return num;
