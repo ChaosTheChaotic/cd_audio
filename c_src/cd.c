@@ -52,6 +52,7 @@ int track_num(char *devicestr) {
 }
 
 TrackMeta get_track_metadata(char *devicestr, int track) {
+  if (track < 0) goto create_meta;
   char *title = NULL, *artist = NULL, *genre = NULL;
   CdIo_t *device = NULL;
   cdrom_drive *dev = NULL;
