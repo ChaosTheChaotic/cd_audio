@@ -1,6 +1,9 @@
 // NOTE: All functions are NOT thread-safe. Serialize access to devices.
-use std::ffi::{c_char, CStr};
+use std::ffi::{c_char, CStr, CString};
 use std::fmt;
+use std::path::Path;
+use std::slice::from_raw_parts;
+use std::str::Utf8Error;
 
 #[repr(C)]
 /*
@@ -40,6 +43,16 @@ impl fmt::Display for TrackMeta {
     }
 }
 
+pub struct STrackMeta {
+    inner: TrackMeta
+}
+
+impl Drop for STrackMeta {
+    fn drop(&mut self) {
+        unsafe { free_track_metadata(&mut self.inner as *mut TrackMeta) };
+    }
+}
+
 unsafe extern "C" {
     // Returns an array of strings containing the paths to devices on the system
     pub fn get_devices() -> *mut *mut c_char;
@@ -53,4 +66,72 @@ unsafe extern "C" {
     pub fn get_track_metadata(devicestr: *const c_char, track: i32) -> TrackMeta;
     // Frees the TrackMeta struct returned by get_track_metadata
     pub fn free_track_metadata(meta: *mut TrackMeta);
+}
+
+pub fn convert_double_pointer_to_vec(
+    data: *mut *mut c_char,
+    len: usize,
+) -> Result<Vec<String>, Utf8Error> {
+    unsafe {
+        from_raw_parts(data, len)
+            .iter()
+            .map(|arg| CStr::from_ptr(*arg).to_str().map(ToString::to_string))
+            .collect()
+    }
+}
+
+pub fn sget_devices() -> SDevList {
+    let devices = unsafe { get_devices() };
+    let sdevices: Vec<String> = convert_double_pointer_to_vec(devices, size_of_val(&devices))
+        .expect("Failed to convert char** to Vec<String>");
+    return SDevList { inner: sdevices }
+}
+
+pub struct SDevList {
+    inner: Vec<String>,
+}
+
+impl Drop for SDevList {
+    fn drop(&mut self) {
+        // Convert Strings to CStrings
+        let c_strings: Vec<CString> = self
+            .inner
+            .iter()
+            .map(|s| CString::new(s.as_bytes()).expect("String contains internal null bytes"))
+            .collect();
+
+        // Create vector of mutable pointers, casting const to mut
+        let mut c_char_pointers: Vec<*mut c_char> = c_strings
+            .iter()
+            .map(|cs| cs.as_ptr() as *mut c_char) // Cast to mutable pointer
+            .collect();
+
+        // Add null terminator
+        c_char_pointers.push(std::ptr::null_mut());
+
+        unsafe {
+            // SAFETY: The C function is now responsible for freeing the memory
+            free_devices(c_char_pointers.as_mut_ptr());
+        }
+
+        // IMPORTANT: Prevent double-free by leaking the CStrings
+        // since the C function now owns the memory
+        std::mem::forget(c_strings);
+    }
+}
+
+pub fn sverify_audio(device: String) -> bool {
+    if !Path::new(&device).exists() { return false };
+    return unsafe { verify_audio(CString::new(&*device).expect("Failed to convert to CString").as_ptr())}
+}
+
+pub fn strack_num(device: String) -> i32 {
+    if !Path::new(&device).exists() { return -1 };
+    return unsafe { track_num(CString::new(&*device).expect("Failed to convert to CString").as_ptr())}
+}
+
+pub fn sget_track_meta(device: String, track: i32) -> STrackMeta {
+    let c_device = CString::new(device).expect("CString conversion failed");
+    let meta = unsafe { get_track_metadata(c_device.as_ptr(), track) };
+    STrackMeta { inner: meta }
 }
