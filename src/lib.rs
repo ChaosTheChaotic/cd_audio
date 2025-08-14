@@ -18,21 +18,21 @@ impl fmt::Display for TrackMeta {
         let title = if self.title.is_null() {
             "Unknown title"
         } else {
-            unsafe { CStr::from_ptr(self.title as *const c_char) }
+            unsafe { CStr::from_ptr(self.title) }
                 .to_str()
                 .unwrap_or("Unknown title")
         };
         let artist = if self.artist.is_null() {
             "Unknown artist"
         } else {
-            unsafe { CStr::from_ptr(self.artist as *const c_char) }
+            unsafe { CStr::from_ptr(self.artist) }
                 .to_str()
                 .unwrap_or("Unknown artist")
         };
         let genre = if self.genre.is_null() {
             "Unknown genre"
         } else {
-            unsafe { CStr::from_ptr(self.genre as *const c_char) }
+            unsafe { CStr::from_ptr(self.genre) }
                 .to_str()
                 .unwrap_or("Unknown genre")
         };
