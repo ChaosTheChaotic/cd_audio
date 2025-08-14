@@ -141,6 +141,25 @@ void free_track_metadata(TrackMeta *meta) {
   *meta = (TrackMeta){0};
 }
 
+int get_track_duration(char* devicestr, int track) {
+  if (!devicestr || access(devicestr, F_OK) == -1) return -1;
+  
+  cdrom_drive* drive = cdda_identify(devicestr, CDDA_MESSAGE_PRINTIT, NULL);
+  if (!drive) return -1;
+  
+  if (cdda_open(drive)) {
+    cdda_close(drive);
+    return -1;
+  }
+  
+  long start = cdda_track_firstsector(drive, track);
+  long end = cdda_track_lastsector(drive, track);
+  int duration = (end - start + 1) / CDIO_CD_FRAMES_PER_SEC;
+  
+  cdda_close(drive);
+  return duration;
+}
+
 // int main() {
 //     char **devices = cdio_get_devices(cdio_os_driver);
 //     if (devices == NULL || devices[0] == NULL) {

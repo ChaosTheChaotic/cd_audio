@@ -66,6 +66,8 @@ unsafe extern "C" {
     pub fn get_track_metadata(devicestr: *const c_char, track: i32) -> TrackMeta;
     // Frees the TrackMeta struct returned by get_track_metadata
     pub fn free_track_metadata(meta: *mut TrackMeta);
+    // Gets the duration of a track, returns -1 on faliure
+    pub fn get_track_duration(devicestr: *const c_char, track: i32) -> i32;
 }
 
 pub fn convert_double_pointer_to_vec(
@@ -145,4 +147,8 @@ pub fn sget_track_meta(device: String, track: i32) -> STrackMeta {
     let c_device = CString::new(device).expect("CString conversion failed");
     let meta = unsafe { get_track_metadata(c_device.as_ptr(), track) };
     STrackMeta { inner: meta }
+}
+
+pub fn strack_duration(device: String, track: i32) -> i32 {
+    return unsafe { get_track_duration(CString::new(device).expect("Failed to convert to CString").as_ptr(), track) };
 }
