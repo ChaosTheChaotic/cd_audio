@@ -8,6 +8,7 @@ fn main() {
 
     pkg_config::Config::new().probe("libcdio_cdda").expect("libcdio_cdda not found");
     pkg_config::Config::new().probe("libcdio").expect("libcdio library not found");
+    pkg_config::Config::new().probe("libcdda_interface").expect("libcdda_interface library not found");
 
     println!("cargo:rustc-link-lib=cdio_cdda");
 
