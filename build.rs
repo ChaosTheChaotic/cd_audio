@@ -10,7 +10,8 @@ fn main() {
     pkg_config::Config::new().probe("libcdio").expect("libcdio library not found");
 
     println!("cargo:rustc-link-lib=cdio_cdda");
-    println!("cargo:rustc-link-lib=cdda_interface");
+    println!("cargo:rustc-link-lib=cdda_interface"); // HOW HAVE I FORGOTTEN THIS BROOOOOOOOOOO YOU
+    // JUST COST ME > 4 HOURS OF MY LIFE
 
     println!("cargo:rerun-if-changed=c_src/cd.c");
     println!("cargo:rerun-if-changed=c_src/cd.h");
