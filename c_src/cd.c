@@ -52,7 +52,8 @@ int track_num(char *devicestr) {
 }
 
 TrackMeta get_track_metadata(char *devicestr, int track) {
-  if (track < 0) goto create_meta;
+  if (track < 0)
+    goto create_meta;
   char *title = NULL, *artist = NULL, *genre = NULL;
   CdIo_t *device = NULL;
   cdrom_drive *dev = NULL;
@@ -78,9 +79,12 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
 
     int num_tracks = cdio_get_num_tracks(device);
     if (track < 1 || track > num_tracks || !cdda_track_audiop(dev, track)) {
-      if (title) free(title);
-      if (artist) free(artist);
-      if (genre) free(genre);
+      if (title)
+        free(title);
+      if (artist)
+        free(artist);
+      if (genre)
+        free(genre);
       goto cleanup;
     }
 
