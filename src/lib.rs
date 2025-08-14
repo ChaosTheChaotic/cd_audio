@@ -82,9 +82,18 @@ pub fn convert_double_pointer_to_vec(
 
 pub fn sget_devices() -> SDevList {
     let devices = unsafe { get_devices() };
-    let sdevices: Vec<String> = convert_double_pointer_to_vec(devices, size_of_val(&devices))
+    
+    let mut len = 0;
+    unsafe {
+        while !(*devices.add(len)).is_null() {
+            len += 1;
+        }
+    }
+
+    let sdevices: Vec<String> = convert_double_pointer_to_vec(devices, len)
         .expect("Failed to convert char** to Vec<String>");
-    return SDevList { inner: sdevices }
+    
+    SDevList { inner: sdevices }
 }
 
 pub struct SDevList {
