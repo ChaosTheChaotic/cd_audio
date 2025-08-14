@@ -7,7 +7,7 @@ pkg_check_modules(LIBCDIO_CDDA REQUIRED libcdio_cdda)
 include_directories(${LIBCDIO_INCLUDE_DIRS} ${LIBCDIO_CDDA_INCLUDE_DIRS})
 
 add_library(cd STATIC cd.c)
-target_link_libraries(cd ${LIBCDIO_LIBRARIES} ${LIBCDIO_CDDA_LIBRARIES})
+target_link_libraries(cd ${LIBCDIO_CDDA_LIBRARIES} ${LIBCDIO_LIBRARIES})
 
 set_target_properties(cd PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
