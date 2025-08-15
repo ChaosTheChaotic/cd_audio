@@ -85,12 +85,6 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
 
     int num_tracks = cdio_get_num_tracks(device);
     if (track < 1 || track > num_tracks || !cdda_track_audiop(dev, track)) {
-      if (title)
-        free(title);
-      if (artist)
-        free(artist);
-      if (genre)
-        free(genre);
       goto cleanup;
     }
 
@@ -119,12 +113,10 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
   }
 
 create_meta:
-  // Assign extracted strings or fallbacks (no double duplication)
   meta.title = title ? title : strdup("Unknown title");
   meta.artist = artist ? artist : strdup("Unknown artist");
   meta.genre = genre ? genre : strdup("Unknown genre");
 
-  // Validate allocations
   if (!meta.title || !meta.artist || !meta.genre) {
     free(meta.title);
     free(meta.artist);
