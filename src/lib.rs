@@ -4,6 +4,10 @@ use std::fmt;
 use std::path::Path;
 use std::slice::from_raw_parts;
 use std::str::Utf8Error;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+static CD_ACCESS_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 #[repr(C)]
 /*
@@ -108,6 +112,7 @@ impl Drop for SDevList {
 }
 
 pub fn sget_devices() -> SDevList {
+    let _lock = CD_ACCESS_MUTEX.lock().unwrap();
     let devices = unsafe { get_devices() };
     
     // Count devices until null pointer
@@ -134,21 +139,25 @@ pub fn sget_devices() -> SDevList {
 }
 
 pub fn sverify_audio(device: String) -> bool {
+    let _lock = CD_ACCESS_MUTEX.lock().unwrap();
     if !Path::new(&device).exists() { return false };
     return unsafe { verify_audio(CString::new(&*device).expect("Failed to convert to CString").as_ptr())}
 }
 
 pub fn strack_num(device: String) -> i32 {
+    let _lock = CD_ACCESS_MUTEX.lock().unwrap();
     if !Path::new(&device).exists() { return -1 };
     return unsafe { track_num(CString::new(&*device).expect("Failed to convert to CString").as_ptr())}
 }
 
 pub fn sget_track_meta(device: String, track: i32) -> STrackMeta {
+    let _lock = CD_ACCESS_MUTEX.lock().unwrap();
     let c_device = CString::new(device).expect("CString conversion failed");
     let meta = unsafe { get_track_metadata(c_device.as_ptr(), track) };
     STrackMeta { inner: meta }
 }
 
 pub fn strack_duration(device: String, track: i32) -> i32 {
+    let _lock = CD_ACCESS_MUTEX.lock().unwrap();
     return unsafe { get_track_duration(CString::new(device).expect("Failed to convert to CString").as_ptr(), track) };
 }
