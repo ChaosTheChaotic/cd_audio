@@ -62,6 +62,8 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
     char *artist = NULL;
     char *genre = NULL;
     cdrom_drive *drive = NULL;
+    CdIo_t *device = NULL;
+    cdtext_t *cdtext = NULL;
 
     if (track < 1 || !devicestr || *devicestr == '\0') {
         goto fallback;
@@ -71,41 +73,42 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
     if (!drive) goto fallback;
     
     if (cdda_open(drive)) {
-        cdda_close(drive);
         goto fallback;
     }
 
     int num_tracks = cdda_tracks(drive);
 
     if (track > num_tracks || !cdda_track_audiop(drive, track)) {
-        cdda_close(drive);
-        goto fallback;
+        goto cleanup;
     }
 
-    CdIo_t *device = cdio_open(devicestr, cdio_os_driver);
+    device = cdio_open(devicestr, cdio_os_driver);
     if (device) {
-        cdtext_t *cdtext = cdio_get_cdtext(device);
+        cdtext = cdio_get_cdtext(device);
         if (cdtext) {
-            if (cdtext_get_const(cdtext, CDTEXT_FIELD_TITLE, track)) {
-                title = strdup(cdtext_get_const(cdtext, CDTEXT_FIELD_TITLE, track));
+            const char *tmp;
+            
+            tmp = cdtext_get_const(cdtext, CDTEXT_FIELD_TITLE, track);
+            if (tmp) title = strdup(tmp);
+            
+            tmp = cdtext_get_const(cdtext, CDTEXT_FIELD_PERFORMER, track);
+            if (tmp) artist = strdup(tmp);
+            else {
+                tmp = cdtext_get_const(cdtext, CDTEXT_FIELD_COMPOSER, track);
+                if (tmp) artist = strdup(tmp);
             }
-            if (cdtext_get_const(cdtext, CDTEXT_FIELD_PERFORMER, track)) {
-                artist = strdup(cdtext_get_const(cdtext, CDTEXT_FIELD_PERFORMER, track));
-            } else if (cdtext_get_const(cdtext, CDTEXT_FIELD_COMPOSER, track)) {
-                artist = strdup(cdtext_get_const(cdtext, CDTEXT_FIELD_COMPOSER, track));
-            }
-            if (cdtext_get_const(cdtext, CDTEXT_FIELD_GENRE, track)) {
-                genre = strdup(cdtext_get_const(cdtext, CDTEXT_FIELD_GENRE, track));
-            }
-            cdtext_destroy(cdtext);
+            
+            tmp = cdtext_get_const(cdtext, CDTEXT_FIELD_GENRE, track);
+            if (tmp) genre = strdup(tmp);
         }
-        cdio_destroy(device);
     }
-    
-    cdda_close(drive);
+
+cleanup:
+    if (drive) cdda_close(drive);
+    if (device) cdio_destroy(device);
+    if (cdtext) cdtext_destroy(cdtext);
 
 fallback:
-    // Safe fallbacks
     if (!title) title = strdup("Unknown title");
     if (!artist) artist = strdup("Unknown artist");
     if (!genre) genre = strdup("Unknown genre");
@@ -114,10 +117,10 @@ fallback:
 }
 
 void free_track_metadata(TrackMeta *meta) {
-  free(meta->title);
-  free(meta->artist);
-  free(meta->genre);
-  *meta = (TrackMeta){0};
+    if (meta->title) free(meta->title);
+    if (meta->artist) free(meta->artist);
+    if (meta->genre) free(meta->genre);
+    *meta = (TrackMeta){0};
 }
 
 int get_track_duration(char* devicestr, int track) {
