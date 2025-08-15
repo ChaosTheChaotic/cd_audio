@@ -117,10 +117,12 @@ fallback:
 }
 
 void free_track_metadata(TrackMeta *meta) {
-    if (meta->title) free(meta->title);
-    if (meta->artist) free(meta->artist);
-    if (meta->genre) free(meta->genre);
-    *meta = (TrackMeta){0};
+    if (meta) {
+        if (meta->title) free(meta->title);
+        if (meta->artist) free(meta->artist);
+        if (meta->genre) free(meta->genre);
+        *meta = (TrackMeta){0};
+    }
 }
 
 int get_track_duration(char* devicestr, int track) {

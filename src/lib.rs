@@ -145,9 +145,11 @@ pub fn sverify_audio(device: String) -> bool {
 }
 
 pub fn strack_num(device: String) -> i32 {
+    if !Path::new(&device).exists() {
+        return -1;
+    }
     let _lock = CD_ACCESS_MUTEX.lock().unwrap();
-    if !Path::new(&device).exists() { return -1 };
-    return unsafe { track_num(CString::new(&*device).expect("Failed to convert to CString").as_ptr())}
+    unsafe { track_num(CString::new(device).expect("CString conversion failed").as_ptr()) }
 }
 
 pub fn sget_track_meta(device: String, track: i32) -> STrackMeta {
