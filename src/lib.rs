@@ -155,7 +155,7 @@ pub fn strack_num(device: String) -> i32 {
 pub fn sget_track_meta(device: String, track: i32) -> (String, String, String) {
     let _lock = CD_ACCESS_MUTEX.lock().unwrap();
     let c_device = CString::new(device).expect("CString conversion failed");
-    let meta = unsafe { get_track_metadata(c_device.as_ptr(), track) };
+    let mut meta = unsafe { get_track_metadata(c_device.as_ptr(), track) };
     
     let title = if meta.title.is_null() {
         "Unknown title".to_string()
@@ -175,7 +175,7 @@ pub fn sget_track_meta(device: String, track: i32) -> (String, String, String) {
         unsafe { CStr::from_ptr(meta.genre).to_string_lossy().into_owned() }
     };
     
-    unsafe { free_track_metadata(&meta as *const TrackMeta as *mut TrackMeta) };
+    unsafe { free_track_metadata(&mut meta) };
     
     (title, artist, genre)
 }
