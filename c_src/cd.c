@@ -61,65 +61,56 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
     char *title = NULL;
     char *artist = NULL;
     char *genre = NULL;
-    CdIo_t *device = NULL;
-    cdrom_drive *dev = NULL;
+    cdrom_drive *drive = NULL;
 
-    if (track >= 1 && devicestr && *devicestr) {
-        device = cdio_open(devicestr, cdio_os_driver);
-        if (device) {
-            dev = cdda_identify(devicestr, CDDA_MESSAGE_PRINTIT, NULL);
-            if (dev) {
-                int open_result = cdda_open(dev);
-                if (open_result == 0) {
-                    int num_tracks = cdio_get_num_tracks(device);
-                    if (track >= 1 && track <= num_tracks && cdda_track_audiop(dev, track)) {
-                        cdtext_t *cdtext = cdio_get_cdtext(device);
-                        if (cdtext) {
-                            char *t = cdtext_get(cdtext, CDTEXT_FIELD_TITLE, track);
-                            if (t) {
-                                title = strdup(t);
-                            }
+    if (track < 1 || !devicestr || *devicestr == '\0') {
+        goto fallback;
+    }
 
-                            t = cdtext_get(cdtext, CDTEXT_FIELD_PERFORMER, track);
-                            if (!t) t = cdtext_get(cdtext, CDTEXT_FIELD_COMPOSER, track);
-                            if (!t) t = cdtext_get(cdtext, CDTEXT_FIELD_SONGWRITER, track);
-                            if (!t) t = cdtext_get(cdtext, CDTEXT_FIELD_ARRANGER, track);
-                            if (t) {
-                                artist = strdup(t);
-                            }
+    drive = cdda_identify(devicestr, CDDA_MESSAGE_PRINTIT, NULL);
+    if (!drive) goto fallback;
+    
+    if (cdda_open(drive)) {
+        cdda_close(drive);
+        goto fallback;
+    }
 
-                            t = cdtext_get(cdtext, CDTEXT_FIELD_GENRE, track);
-                            if (t) {
-                                genre = strdup(t);
-                            }
+    int num_tracks = cdda_tracks(drive);
 
-                            cdtext_destroy(cdtext);
-                        }
-                    }
-                }
-                cdda_close(dev);
+    if (track > num_tracks || !cdda_track_audiop(drive, track)) {
+        cdda_close(drive);
+        goto fallback;
+    }
+
+    CdIo_t *device = cdio_open(devicestr, cdio_os_driver);
+    if (device) {
+        cdtext_t *cdtext = cdio_get_cdtext(device);
+        if (cdtext) {
+            if (cdtext_get_const(cdtext, CDTEXT_FIELD_TITLE, track)) {
+                title = strdup(cdtext_get_const(cdtext, CDTEXT_FIELD_TITLE, track));
             }
-            cdio_destroy(device);
+            if (cdtext_get_const(cdtext, CDTEXT_FIELD_PERFORMER, track)) {
+                artist = strdup(cdtext_get_const(cdtext, CDTEXT_FIELD_PERFORMER, track));
+            } else if (cdtext_get_const(cdtext, CDTEXT_FIELD_COMPOSER, track)) {
+                artist = strdup(cdtext_get_const(cdtext, CDTEXT_FIELD_COMPOSER, track));
+            }
+            if (cdtext_get_const(cdtext, CDTEXT_FIELD_GENRE, track)) {
+                genre = strdup(cdtext_get_const(cdtext, CDTEXT_FIELD_GENRE, track));
+            }
+            cdtext_destroy(cdtext);
         }
+        cdio_destroy(device);
     }
+    
+    cdda_close(drive);
 
-    // Ensure we always have valid strings
-    if (title == NULL) {
-        title = strdup("Unknown title");
-    }
-    if (artist == NULL) {
-        artist = strdup("Unknown artist");
-    }
-    if (genre == NULL) {
-        genre = strdup("Unknown genre");
-    }
+fallback:
+    // Safe fallbacks
+    if (!title) title = strdup("Unknown title");
+    if (!artist) artist = strdup("Unknown artist");
+    if (!genre) genre = strdup("Unknown genre");
 
-    TrackMeta meta = {
-        .title = title,
-        .artist = artist,
-        .genre = genre
-    };
-    return meta;
+    return (TrackMeta){title, artist, genre};
 }
 
 void free_track_metadata(TrackMeta *meta) {
