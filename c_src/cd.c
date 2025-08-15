@@ -58,78 +58,68 @@ int track_num(char *devicestr) {
 }
 
 TrackMeta get_track_metadata(char *devicestr, int track) {
-  if (track < 0)
-    goto create_meta;
-  char *title = NULL, *artist = NULL, *genre = NULL;
-  CdIo_t *device = NULL;
-  cdrom_drive *dev = NULL;
-  TrackMeta meta = {0};
+    char *title = NULL;
+    char *artist = NULL;
+    char *genre = NULL;
+    CdIo_t *device = NULL;
+    cdrom_drive *dev = NULL;
 
-  if (devicestr && *devicestr) {
-    device = cdio_open(devicestr, cdio_os_driver);
-    if (!device)
-      goto create_meta;
+    if (track >= 1 && devicestr && *devicestr) {
+        device = cdio_open(devicestr, cdio_os_driver);
+        if (device) {
+            dev = cdda_identify(devicestr, CDDA_MESSAGE_PRINTIT, NULL);
+            if (dev) {
+                int open_result = cdda_open(dev);
+                if (open_result == 0) {
+                    int num_tracks = cdio_get_num_tracks(device);
+                    if (track >= 1 && track <= num_tracks && cdda_track_audiop(dev, track)) {
+                        cdtext_t *cdtext = cdio_get_cdtext(device);
+                        if (cdtext) {
+                            char *t = cdtext_get(cdtext, CDTEXT_FIELD_TITLE, track);
+                            if (t) {
+                                title = strdup(t);
+                            }
 
-    dev = cdda_identify(devicestr, CDDA_MESSAGE_PRINTIT, NULL);
-    if (!dev) {
-      cdio_destroy(device);
-      goto create_meta;
+                            t = cdtext_get(cdtext, CDTEXT_FIELD_PERFORMER, track);
+                            if (!t) t = cdtext_get(cdtext, CDTEXT_FIELD_COMPOSER, track);
+                            if (!t) t = cdtext_get(cdtext, CDTEXT_FIELD_SONGWRITER, track);
+                            if (!t) t = cdtext_get(cdtext, CDTEXT_FIELD_ARRANGER, track);
+                            if (t) {
+                                artist = strdup(t);
+                            }
+
+                            t = cdtext_get(cdtext, CDTEXT_FIELD_GENRE, track);
+                            if (t) {
+                                genre = strdup(t);
+                            }
+
+                            cdtext_destroy(cdtext);
+                        }
+                    }
+                }
+                cdda_close(dev);
+            }
+            cdio_destroy(device);
+        }
     }
 
-    if (cdda_open(dev)) {
-      fprintf(stderr, "CDDA open failed: %s", devicestr);
-      cdio_destroy(device);
-      cdda_close(dev);
-      goto create_meta;
+    // Ensure we always have valid strings
+    if (title == NULL) {
+        title = strdup("Unknown title");
+    }
+    if (artist == NULL) {
+        artist = strdup("Unknown artist");
+    }
+    if (genre == NULL) {
+        genre = strdup("Unknown genre");
     }
 
-    int num_tracks = cdio_get_num_tracks(device);
-    if (track < 1 || track > num_tracks || !cdda_track_audiop(dev, track)) {
-      goto cleanup;
-    }
-
-    cdtext_t *cdtext = cdio_get_cdtext(device);
-    if (cdtext) {
-      char *t = cdtext_get(cdtext, CDTEXT_FIELD_TITLE, track);
-      if (t)
-        title = strdup(t);
-
-      t = cdtext_get(cdtext, CDTEXT_FIELD_PERFORMER, track);
-      if (!t)
-        t = cdtext_get(cdtext, CDTEXT_FIELD_COMPOSER, track);
-      if (!t)
-        t = cdtext_get(cdtext, CDTEXT_FIELD_SONGWRITER, track);
-      if (!t)
-        t = cdtext_get(cdtext, CDTEXT_FIELD_ARRANGER, track);
-      if (t)
-        artist = strdup(t);
-
-      t = cdtext_get(cdtext, CDTEXT_FIELD_GENRE, track);
-      if (t)
-        genre = strdup(t);
-
-      cdtext_destroy(cdtext);
-    }
-  }
-
-create_meta:
-  meta.title = title ? title : strdup("Unknown title");
-  meta.artist = artist ? artist : strdup("Unknown artist");
-  meta.genre = genre ? genre : strdup("Unknown genre");
-
-  if (!meta.title || !meta.artist || !meta.genre) {
-    free(meta.title);
-    free(meta.artist);
-    free(meta.genre);
-    meta = (TrackMeta){0};
-  }
-
-cleanup:
-  if (device)
-    cdio_destroy(device);
-  if (dev)
-    cdda_close(dev);
-  return meta;
+    TrackMeta meta = {
+        .title = title,
+        .artist = artist,
+        .genre = genre
+    };
+    return meta;
 }
 
 void free_track_metadata(TrackMeta *meta) {
