@@ -152,11 +152,32 @@ pub fn strack_num(device: String) -> i32 {
     unsafe { track_num(CString::new(device).expect("CString conversion failed").as_ptr()) }
 }
 
-pub fn sget_track_meta(device: String, track: i32) -> STrackMeta {
+pub fn sget_track_meta(device: String, track: i32) -> (String, String, String) {
     let _lock = CD_ACCESS_MUTEX.lock().unwrap();
     let c_device = CString::new(device).expect("CString conversion failed");
     let meta = unsafe { get_track_metadata(c_device.as_ptr(), track) };
-    STrackMeta { inner: meta }
+    
+    let title = if meta.title.is_null() {
+        "Unknown title".to_string()
+    } else {
+        unsafe { CStr::from_ptr(meta.title).to_string_lossy().into_owned() }
+    };
+    
+    let artist = if meta.artist.is_null() {
+        "Unknown artist".to_string()
+    } else {
+        unsafe { CStr::from_ptr(meta.artist).to_string_lossy().into_owned() }
+    };
+    
+    let genre = if meta.genre.is_null() {
+        "Unknown genre".to_string()
+    } else {
+        unsafe { CStr::from_ptr(meta.genre).to_string_lossy().into_owned() }
+    };
+    
+    unsafe { free_track_metadata(&meta as *const TrackMeta as *mut TrackMeta) };
+    
+    (title, artist, genre)
 }
 
 pub fn strack_duration(device: String, track: i32) -> i32 {
