@@ -82,7 +82,7 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
         goto cleanup;
     }
 
-    device = cdio_open(devicestr, cdio_os_driver);
+    device = cdio_open(devicestr, DRIVER_UNKNOWN);
     if (device) {
         cdtext = cdio_get_cdtext(device);
         if (cdtext) {
@@ -106,7 +106,7 @@ TrackMeta get_track_metadata(char *devicestr, int track) {
 cleanup:
     if (drive) cdda_close(drive);
     if (device) cdio_destroy(device);
-    if (cdtext) cdtext_destroy(cdtext);
+    // cdtext is owned by device; DO NOT destroy separately (apparently)
 
 fallback:
     if (!title) title = strdup("Unknown title");
