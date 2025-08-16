@@ -11,6 +11,13 @@
 #include <string.h>
 #include <unistd.h>
 
+typedef struct CDStream {
+    cdrom_drive *drive;
+    int track;
+    long current_sector;
+    long last_sector;
+} CDStream;
+
 // It is not this functions job to free
 char **get_devices() { return cdio_get_devices(cdio_os_driver); }
 
@@ -142,6 +149,50 @@ int get_track_duration(char* devicestr, int track) {
   
   cdda_close(drive);
   return duration;
+}
+
+
+CDStream *open_cd_stream(const char *devicestr, int track) {
+    if (!devicestr || track < 1) return NULL;
+    
+    cdrom_drive *drive = cdda_identify(devicestr, CDDA_MESSAGE_PRINTIT, NULL);
+    if (!drive) return NULL;
+    
+    if (cdda_open(drive)) {
+        cdda_close(drive);
+        return NULL;
+    }
+    
+    long first = cdda_track_firstsector(drive, track);
+    long last = cdda_track_lastsector(drive, track);
+    
+    CDStream *stream = malloc(sizeof(CDStream));
+    stream->drive = drive;
+    stream->track = track;
+    stream->current_sector = first;
+    stream->last_sector = last;
+    return stream;
+}
+
+int read_cd_stream(CDStream *stream, void *buffer, int sectors) {
+    if (!stream || !buffer || sectors <= 0) return -1;
+    if (stream->current_sector > stream->last_sector) return 0;
+    
+    int sectors_to_read = sectors;
+    if (stream->current_sector + sectors > stream->last_sector + 1) {
+        sectors_to_read = stream->last_sector - stream->current_sector + 1;
+    }
+    
+    long ret = cdda_read(stream->drive, buffer, stream->current_sector, sectors_to_read);
+    if (ret > 0) stream->current_sector += ret;
+    return ret;
+}
+
+void close_cd_stream(CDStream *stream) {
+    if (stream) {
+        cdda_close(stream->drive);
+        free(stream);
+    }
 }
 
 // int main() {

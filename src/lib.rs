@@ -1,5 +1,5 @@
 // NOTE: All functions are NOT thread-safe. Serialize access to devices.
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, CStr, CString, c_void};
 use std::fmt;
 use std::path::Path;
 use std::slice::from_raw_parts;
@@ -72,6 +72,12 @@ unsafe extern "C" {
     pub fn free_track_metadata(meta: *mut TrackMeta);
     // Gets the duration of a track, returns -1 on faliure
     pub fn get_track_duration(devicestr: *const c_char, track: i32) -> i32;
+    // Opens a CDStream, returns NULL on failure
+    pub fn open_cd_stream(devicestr: *const c_char, track: i32) -> *mut CDStream;
+    // Reads from the CD
+    pub fn read_cd_stream(stream: *mut CDStream, buffer: *mut c_void, sectors: i32) -> i32;
+    // Closes the CDStream
+    pub fn close_cd_stream(stream: *mut CDStream);
 }
 
 pub fn convert_double_pointer_to_vec(
@@ -183,4 +189,43 @@ pub fn sget_track_meta(device: String, track: i32) -> (String, String, String) {
 pub fn strack_duration(device: String, track: i32) -> i32 {
     let _lock = CD_ACCESS_MUTEX.lock().unwrap();
     return unsafe { get_track_duration(CString::new(device).expect("Failed to convert to CString").as_ptr(), track) };
+}
+
+#[repr(C)]
+pub struct CDStream {
+    _private: [u8; 0],
+}
+
+pub struct SCDStream {
+    pub inner: *mut CDStream,
+}
+
+impl Drop for SCDStream {
+    fn drop(&mut self) {
+        if !self.inner.is_null() {
+            unsafe { close_cd_stream(self.inner) };
+        }
+    }
+}
+
+pub fn sopen_cd_stream(device: &str, track: i32) -> Option<SCDStream> {
+    let _lock = CD_ACCESS_MUTEX.lock().unwrap();
+    let c_device = CString::new(device).ok()?;
+    let stream = unsafe { open_cd_stream(c_device.as_ptr(), track) };
+    if stream.is_null() {
+        None
+    } else {
+        Some(SCDStream { inner: stream })
+    }
+}
+
+pub fn sread_cd_stream(stream: &mut SCDStream, buffer: &mut [u8], sectors: i32) -> i32 {
+    let _lock = CD_ACCESS_MUTEX.lock().unwrap();
+    unsafe {
+        read_cd_stream(
+            stream.inner,
+            buffer.as_mut_ptr() as *mut c_void,
+            sectors,
+        )
+    }
 }
