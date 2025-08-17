@@ -78,6 +78,12 @@ unsafe extern "C" {
     pub fn read_cd_stream(stream: *mut CDStream, buffer: *mut c_void, sectors: i32) -> i32;
     // Closes the CDStream
     pub fn close_cd_stream(stream: *mut CDStream);
+    // Allows seeking through the provided CDStream to a sector. Returns false on error
+    pub fn seek_cd_stream(stream: *mut CDStream, sector: i32) -> bool;
+    // Returns the first sector of the CDStream
+    pub fn get_cd_stream_first_sector(stream: *mut CDStream) -> i32;
+    // Returns the last sector of the CDStream
+    pub fn get_cd_stream_last_sector(stream: *mut CDStream) -> i32;
 }
 
 pub fn convert_double_pointer_to_vec(
@@ -228,4 +234,16 @@ pub fn sread_cd_stream(stream: &mut SCDStream, buffer: &mut [u8], sectors: i32) 
             sectors,
         )
     }
+}
+
+pub fn sseek_cd_stream(stream: &mut SCDStream, sector: i32) -> bool {
+    unsafe { seek_cd_stream(stream.inner, sector) }
+}
+
+pub fn sget_cd_stream_first_sector(stream: &SCDStream) -> i32 {
+    unsafe { get_cd_stream_first_sector(stream.inner) }
+}
+
+pub fn sget_cd_stream_last_sector(stream: &SCDStream) -> i32 {
+    unsafe { get_cd_stream_last_sector(stream.inner) }
 }

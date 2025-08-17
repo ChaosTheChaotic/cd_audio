@@ -11,13 +11,6 @@
 #include <string.h>
 #include <unistd.h>
 
-typedef struct CDStream {
-    cdrom_drive *drive;
-    int track;
-    long current_sector;
-    long last_sector;
-} CDStream;
-
 // It is not this functions job to free
 char **get_devices() { return cdio_get_devices(cdio_os_driver); }
 
@@ -169,6 +162,7 @@ CDStream *open_cd_stream(const char *devicestr, int track) {
     CDStream *stream = malloc(sizeof(CDStream));
     stream->drive = drive;
     stream->track = track;
+    stream->first_sector = first;
     stream->current_sector = first;
     stream->last_sector = last;
     return stream;
@@ -193,6 +187,14 @@ void close_cd_stream(CDStream *stream) {
         cdda_close(stream->drive);
         free(stream);
     }
+}
+
+bool seek_cd_stream(CDStream *stream, long sector) {
+    if (!stream || sector < stream->first_sector || sector > stream->last_sector) {
+        return false;
+    }
+    stream->current_sector = sector;
+    return true;
 }
 
 // int main() {
