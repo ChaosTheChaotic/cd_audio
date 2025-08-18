@@ -182,6 +182,16 @@ int read_cd_stream(CDStream *stream, void *buffer, int sectors) {
     return ret;
 }
 
+int32_t get_cd_stream_first_sector(CDStream *stream) {
+    if (!stream) return -1;
+    return (int32_t)stream->first_sector;
+}
+
+int32_t get_cd_stream_last_sector(CDStream *stream) {
+    if (!stream) return -1;
+    return (int32_t)stream->last_sector;
+}
+
 void close_cd_stream(CDStream *stream) {
     if (stream) {
         cdda_close(stream->drive);
